@@ -1,0 +1,96 @@
+import os
+import sys 
+import uuid
+from tqdm import tqdm
+import torch
+import airbench
+from elastic_airbench94 import InfiniteCifarLoader, train, make_net
+
+with open(sys.argv[0]) as f:
+    code = f.read()
+
+train_loader = airbench.CifarLoader('/tmp/cifar10', train=True)
+train_labels = train_loader.labels
+test_loader = airbench.CifarLoader('/tmp/cifar10', train=False)
+
+model = torch.compile(make_net(), mode='max-autotune')
+
+def save_outs(mask, key, **kwargs):
+
+    loader = InfiniteCifarLoader('/tmp/cifar10', train=True, batch_size=1000, aug=dict(flip=True, translate=2))
+    loader.images = loader.images[mask]
+    loader.labels = loader.labels[mask]
+
+    train_logits = []
+    test_logits = []
+    for i in range(100):
+        train(model, loader, **kwargs)
+        train_logits.append(airbench.infer(model, train_loader))
+        test_logits.append(airbench.infer(model, test_loader))
+    obj = dict(code=code, mask=mask, train_logits=torch.stack(train_logits), test_logits=torch.stack(test_logits))
+    os.makedirs('logits/%s' % key, exist_ok=True)
+    torch.save(obj, os.path.join('logits', key, str(uuid.uuid4())+'.pt'))
+
+def convert_mask(mask, labels=train_labels):
+    """ 
+    input: mask of shape [10, 5000] where mask[c, i] corresponds
+           to whether the ith example of class c should be kept.
+    output: mask of shape [50000] which implements this desiderata.
+    """
+    ind = torch.arange(len(labels), device=labels.device)
+    class_idxs = torch.stack([ind[labels == c] for c in range(10)])
+    keep_idxs = class_idxs[mask]
+    mask_out = torch.tensor([False]*50000, device=labels.device)
+    mask_out[keep_idxs] = True
+    return mask_out
+
+def get_firstk(k):
+    mask = torch.empty(10, 5000, dtype=torch.bool, device=train_labels.device).fill_(False)
+    mask[:, :k] = True
+    return mask
+
+for _ in tqdm(range(2000)):
+    mask = get_firstk(4000)
+    mask[:, 4000:] = (torch.rand(10, 1000) < 0.5)
+    mask = convert_mask(mask)
+    save_outs(mask, 'machine_e10_first4000_random_masks')
+
+sys.exit(0)
+
+n = 28
+
+for _ in tqdm(range(n)):
+    mask = get_firstk(5000)
+    mask = convert_mask(mask)
+    save_outs(mask, 'machine_e11', epochs=11)
+
+for _ in tqdm(range(n)):
+    mask = get_firstk(5000)
+    mask = convert_mask(mask)
+    save_outs(mask, 'machine_e12', epochs=12)
+
+for _ in tqdm(range(n)):
+    mask = get_firstk(5000)
+    mask = convert_mask(mask)
+    save_outs(mask, 'machine_e15', epochs=15)
+
+for _ in tqdm(range(n)):
+    mask = get_firstk(5000)
+    mask = convert_mask(mask)
+    save_outs(mask, 'machine_e20', epochs=20)
+
+for _ in tqdm(range(n)):
+    mask = get_firstk(5000)
+    mask = convert_mask(mask)
+    save_outs(mask, 'machine_e10_lr5', learning_rate=5.0)
+
+for _ in tqdm(range(n)):
+    mask = get_firstk(5000)
+    mask = convert_mask(mask)
+    save_outs(mask, 'machine_e10_lr15', learning_rate=15.0)
+
+for _ in tqdm(range(n)):
+    mask = get_firstk(5000)
+    mask = convert_mask(mask)
+    save_outs(mask, 'machine_e10_lr20div3', learning_rate=20/3)
+
