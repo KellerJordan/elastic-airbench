@@ -54,7 +54,7 @@ for _ in tqdm(range(2000)):
     mask = get_firstk(4000)
     mask[:, 4000:] = (torch.rand(10, 1000) < 0.5)
     mask = convert_mask(mask)
-    save_outs(mask, 'machine_e10_first4000_random_masks')
+    save_outs(mask, 'elastic_e10_first4000_random_masks')
 
 n = 50
 
