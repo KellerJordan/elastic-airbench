@@ -304,7 +304,6 @@ def train(model, train_loader,
     lr_biases = lr * bias_scaler
 
     loss_fn = nn.CrossEntropyLoss(label_smoothing=label_smoothing, reduction='none')
-    test_loader = airbench.CifarLoader('cifar10', train=False, batch_size=2000)
 
     # Calculate the total train steps as an unbiased stochastic rounding of the possibly-fractional total batches
     # For example, with epochs=10 and batch_size=1000, we normally will always get 500 steps.
