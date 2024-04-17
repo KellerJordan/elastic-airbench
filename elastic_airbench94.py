@@ -123,7 +123,7 @@ class InfiniteCifarLoader:
 
     def set_random_state(self, state):
         if self.seed is not None:
-            seed = 1000 * self.seed + state # just don't do more than 1000 epochs or else there will be wraparound
+            seed = 1000 * self.seed + state # just don't do more than 1000 epochs or else there will be overlap
             torch.manual_seed(seed)
 
     def __iter__(self):
