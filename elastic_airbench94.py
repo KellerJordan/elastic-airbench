@@ -98,7 +98,7 @@ class InfiniteCifarLoader:
     and support stochastic iteration counts in order to preserve perfect linearity/independence.
     """
 
-    def __init__(self, path, train=True, batch_size=500, aug=None):
+    def __init__(self, path, train=True, batch_size=500, aug=None, seed=None):
         data_path = os.path.join(path, 'train.pt' if train else 'test.pt')
         if not os.path.exists(data_path):
             dset = torchvision.datasets.CIFAR10(path, download=True, train=train)
@@ -119,9 +119,15 @@ class InfiniteCifarLoader:
 
         self.batch_size = batch_size
         assert train
+        self.seed = seed
 
     #def __len__(self):
     #    return 1
+
+    def set_random_state(self, state):
+        if self.seed is not None:
+            seed = 1000000 * self.seed + state
+            torch.manual_seed(seed)
 
     def __iter__(self):
 
@@ -129,6 +135,7 @@ class InfiniteCifarLoader:
         images0 = self.normalize(self.images)
         # Pre-randomly flip images in order to do alternating flip later.
         assert self.aug.get('flip', False)
+        self.set_random_state(0)
         images0 = batch_flip_lr(images0)
         # Pre-pad images to save time when doing random translation
         pad = self.aug.get('translate', 0)
@@ -163,9 +170,11 @@ class InfiniteCifarLoader:
                     # If we already reached the end of the last epoch then we need to generate
                     # a new augmented epoch of data (using random crop and alternating flip).
                     epoch += 1
+                    self.set_random_state(epoch)
+                    indices = torch.randperm(len(images0), device=images0.device)
+                    self.set_random_state(epoch)
                     images1 = batch_crop(images0, 32)
                     images1 = images1 if epoch % 2 == 0 else images1.flip(-1)
-                    indices = torch.randperm(len(images1), device=images1.device)
                     images1 = images1[indices]
                     labels1 = labels0[indices]
                     current_pointer = 0
