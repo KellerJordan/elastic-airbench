@@ -122,7 +122,12 @@ class InfiniteCifarLoader:
         self.seed = seed
 
     def set_random_state(self, state):
-        if self.seed is not None:
+        if self.seed is None:
+            # If we don't get a data seed, then make sure to randomize the state using independent generator, since
+            # it might have already been set by the model seed.
+            import random
+            torch.manual_seed(random.randint(0, 2**63))
+        else:
             seed = 1000 * self.seed + state # just don't do more than 1000 epochs or else there will be overlap
             torch.manual_seed(seed)
 
