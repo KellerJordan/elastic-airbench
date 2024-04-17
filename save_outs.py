@@ -20,7 +20,7 @@ model = torch.compile(make_net(), mode='max-autotune')
 
 def save_outs(mask, key, **kwargs):
 
-    loader = InfiniteCifarLoader('/tmp/cifar10', train=True, batch_size=1000, aug=dict(flip=True, translate=2), data_seed=None)
+    loader = InfiniteCifarLoader('/tmp/cifar10', train=True, batch_size=1000, aug=dict(flip=True, translate=2), seed=None)
     loader.images = loader.images[mask]
     loader.labels = loader.labels[mask]
 
