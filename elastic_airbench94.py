@@ -329,7 +329,12 @@ def train(model, train_loader,
         total_train_steps = integral_steps
 
     # Reinitialize the network from scratch - nothing is reused from previous runs besides the PyTorch compilation
-    if model_seed is not None:
+    if model_seed is None:
+        # If we don't get a model seed, then make sure to randomize the state using independent generator, since
+        # it might have already been set by the data seed inside the loader.
+        import random
+        torch.manual_seed(random.randint(0, 2**63))
+    else:
         torch.manual_seed(model_seed)
     reinit_net(model)
     current_steps = 0
