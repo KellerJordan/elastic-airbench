@@ -297,7 +297,7 @@ def init_whitening_conv(layer, train_set, eps=5e-4):
 def train(model, train_loader,
           label_smoothing=hyp['opt']['label_smoothing'], epochs=hyp['opt']['epochs'],
           learning_rate=hyp['opt']['lr'], weight_decay=hyp['opt']['weight_decay'], momentum=hyp['opt']['momentum'],
-          bias_scaler=hyp['opt']['bias_scaler']):
+          bias_scaler=hyp['opt']['bias_scaler'], model_seed=None):
 
     batch_size = train_loader.batch_size
     # Assuming gradients are constant in time, for Nesterov momentum, the below ratio is how much
@@ -328,6 +328,8 @@ def train(model, train_loader,
         total_train_steps = integral_steps
 
     # Reinitialize the network from scratch - nothing is reused from previous runs besides the PyTorch compilation
+    if model_seed is not None:
+        torch.manual_seed(model_seed)
     reinit_net(model)
     current_steps = 0
 

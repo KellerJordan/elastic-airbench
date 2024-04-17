@@ -6,6 +6,9 @@ import torch
 import airbench
 from elastic_airbench94 import InfiniteCifarLoader, train, make_net
 
+# If you want full determinism, must explicitly do this since importing airbench turns it on.
+#torch.backends.cudnn.benchmark = False
+
 with open(sys.argv[0]) as f:
     code = f.read()
 
@@ -17,14 +20,14 @@ model = torch.compile(make_net(), mode='max-autotune')
 
 def save_outs(mask, key, **kwargs):
 
-    loader = InfiniteCifarLoader('/tmp/cifar10', train=True, batch_size=1000, aug=dict(flip=True, translate=2))
+    loader = InfiniteCifarLoader('/tmp/cifar10', train=True, batch_size=1000, aug=dict(flip=True, translate=2), data_seed=None)
     loader.images = loader.images[mask]
     loader.labels = loader.labels[mask]
 
     train_logits = []
     test_logits = []
     for i in range(100):
-        train(model, loader, **kwargs)
+        train(model, loader, model_seed=None, **kwargs)
         train_logits.append(airbench.infer(model, train_loader))
         test_logits.append(airbench.infer(model, test_loader))
     obj = dict(code=code, mask=mask, train_logits=torch.stack(train_logits), test_logits=torch.stack(test_logits))
