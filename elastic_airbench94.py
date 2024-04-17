@@ -121,9 +121,6 @@ class InfiniteCifarLoader:
         assert train
         self.seed = seed
 
-    #def __len__(self):
-    #    return 1
-
     def set_random_state(self, state):
         if self.seed is not None:
             seed = 1000000 * self.seed + state
