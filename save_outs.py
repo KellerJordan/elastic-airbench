@@ -49,48 +49,62 @@ def get_firstk(k):
     mask[:, :k] = True
     return mask
 
+
 for _ in tqdm(range(2000)):
     mask = get_firstk(4000)
     mask[:, 4000:] = (torch.rand(10, 1000) < 0.5)
     mask = convert_mask(mask)
-    save_outs(mask, 'machine_e10_first4000_random_masks')
+    save_outs(mask, 'elastic_e10_first4000_random_masks')
 
-sys.exit(0)
-
-n = 28
+n = 50
 
 for _ in tqdm(range(n)):
     mask = get_firstk(5000)
     mask = convert_mask(mask)
-    save_outs(mask, 'machine_e11', epochs=11)
+    save_outs(mask, 'elastic_e10')
+
+for _ in tqdm(range(n)):
+    mask = get_firstk(4000)
+    mask = convert_mask(mask)
+    save_outs(mask, 'elastic_e10_first4000')
+
+for _ in tqdm(range(n)):
+    mask = get_firstk(4000)
+    mask[:, 4000:4500] = True
+    mask = convert_mask(mask)
+    save_outs(mask, 'elastic_e10_first4000_first500')
+
+for _ in tqdm(range(n)):
+    mask = get_firstk(4000)
+    mask[:, 4500:5000] = True
+    mask = convert_mask(mask)
+    save_outs(mask, 'elastic_e10_first4000_last500')
+
+for _ in tqdm(range(n)):
+    mask = get_firstk(4000)
+    mask[3, :] = True
+    mask[5, :] = True
+    mask = convert_mask(mask)
+    save_outs(mask, 'elastic_e10_first4000_catdog')
+
+n = 10
 
 for _ in tqdm(range(n)):
     mask = get_firstk(5000)
     mask = convert_mask(mask)
-    save_outs(mask, 'machine_e12', epochs=12)
+    save_outs(mask, 'elastic_e11', epochs=11)
 
 for _ in tqdm(range(n)):
     mask = get_firstk(5000)
     mask = convert_mask(mask)
-    save_outs(mask, 'machine_e15', epochs=15)
+    save_outs(mask, 'elastic_e12', epochs=12)
 
 for _ in tqdm(range(n)):
     mask = get_firstk(5000)
     mask = convert_mask(mask)
-    save_outs(mask, 'machine_e20', epochs=20)
+    save_outs(mask, 'elastic_e15', epochs=15)
 
 for _ in tqdm(range(n)):
     mask = get_firstk(5000)
     mask = convert_mask(mask)
-    save_outs(mask, 'machine_e10_lr5', learning_rate=5.0)
-
-for _ in tqdm(range(n)):
-    mask = get_firstk(5000)
-    mask = convert_mask(mask)
-    save_outs(mask, 'machine_e10_lr15', learning_rate=15.0)
-
-for _ in tqdm(range(n)):
-    mask = get_firstk(5000)
-    mask = convert_mask(mask)
-    save_outs(mask, 'machine_e10_lr20div3', learning_rate=20/3)
-
+    save_outs(mask, 'elastic_e20', epochs=20)
