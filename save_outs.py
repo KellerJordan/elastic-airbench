@@ -18,9 +18,9 @@ test_loader = airbench.CifarLoader('/tmp/cifar10', train=False)
 
 model = torch.compile(make_net(), mode='max-autotune')
 
-def save_outs(mask, key, **kwargs):
+def save_outs(mask, key, data_seed=None, **kwargs):
 
-    loader = InfiniteCifarLoader('/tmp/cifar10', train=True, batch_size=1000, aug=dict(flip=True, translate=2), seed=None)
+    loader = InfiniteCifarLoader('/tmp/cifar10', train=True, batch_size=1000, aug=dict(flip=True, translate=2), seed=data_seed)
     loader.images = loader.images[mask]
     loader.labels = loader.labels[mask]
 
