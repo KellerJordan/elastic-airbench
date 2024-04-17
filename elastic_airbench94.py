@@ -322,6 +322,7 @@ def train(model, train_loader,
     total_batches = epochs * batches_per_epoch
     integral_steps = int(total_batches)
     fractional_steps = total_batches - integral_steps
+    # TODO: This is still nondeterministic when the batch size doesn't divide N. Not a case I really care about.
     if torch.rand(1)[0] <= fractional_steps:
         total_train_steps = integral_steps + 1
     else:
