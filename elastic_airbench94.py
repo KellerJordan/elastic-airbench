@@ -351,7 +351,7 @@ def train(model, train_loader,
 
     # Initialize the whitening layer using the first 5000 training images
     train_images = train_loader.normalize(train_loader.images[:5000])
-    init_whitening_conv(model._orig_mod[0], train_images)
+    init_whitening_conv(getattr(model, '_orig_mod', model)[0], train_images)
 
     ####################
     #     Training     #
