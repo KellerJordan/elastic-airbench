@@ -335,7 +335,7 @@ def train(model, train_loader,
     # across-epochs. And if we input a train_loader with 49950 examples, then we get 499.5 steps, i.e., a 50%
     # probability of 500 steps (where the 500th would involve a random 500 examples from an "11th" epoch), and
     # a 50% probability of 499 steps (where the last epoch would have a random 500 examples missing).
-    num_examples = len(train_loader.images)
+    num_examples = len(train_loader.images) if train_loader.subset_mask is None else train_loader.subset_mask.sum().item()
     batches_per_epoch = num_examples / batch_size
     total_batches = epochs * batches_per_epoch
     integral_steps = int(total_batches)
