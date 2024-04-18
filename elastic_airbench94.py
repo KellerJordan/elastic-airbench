@@ -183,9 +183,15 @@ class InfiniteCifarLoader:
                     self.set_random_state(self.order_seed, epoch)
                     indices = torch.randperm(len(self.images), device=images0.device)
 
-                    indices = indices[self.subset_mask] # Do the subsetting here to minimize interaction with randomness.
-                    images1 = images1[indices]
-                    labels1 = labels0[indices]
+                    # The effect of doing subsetting in this manner is as follows. If the permutation wants to show us
+                    # our four examples in order [3, 2, 0, 1], and the subset mask is [True, False, True, False],
+                    # then we will be shown the examples [2, 0]. It is the subset of the ordering.
+                    # The purpose is to minimize the interaction between the subset mask and the randomness.
+                    # So that the subset causes not only a subset of the total examples to be shown, but also a subset of
+                    # the actual sequence of examples which is shown during training.
+                    indices_subset = indices[self.subset_mask[indices]]
+                    images1 = images1[indices_subset]
+                    labels1 = labels0[indices_subset]
                     current_pointer = 0
 
                 # Now we are sure to have more data in this epoch remaining.
