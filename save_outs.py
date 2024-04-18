@@ -18,16 +18,17 @@ test_loader = airbench.CifarLoader('/tmp/cifar10', train=False)
 
 model = torch.compile(make_net(), mode='max-autotune')
 
-def save_outs(mask, key, data_seed=None, **kwargs):
+def save_outs(mask, key, aug_seed=None, order_seed=None, **kwargs):
 
-    loader = InfiniteCifarLoader('/tmp/cifar10', train=True, batch_size=1000, aug=dict(flip=True, translate=2), seed=data_seed)
+    loader = InfiniteCifarLoader('/tmp/cifar10', train=True, batch_size=1000, aug=dict(flip=True, translate=2),
+                                 aug_seed=aug_seed, order_seed=order_seed)
     loader.images = loader.images[mask]
     loader.labels = loader.labels[mask]
 
     train_logits = []
     test_logits = []
-    for i in range(100):
-        train(model, loader, model_seed=None, **kwargs)
+    for i in range(50):
+        train(model, loader, **kwargs)
         train_logits.append(airbench.infer(model, train_loader))
         test_logits.append(airbench.infer(model, test_loader))
     obj = dict(code=code, mask=mask, train_logits=torch.stack(train_logits), test_logits=torch.stack(test_logits))

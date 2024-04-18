@@ -98,7 +98,7 @@ class InfiniteCifarLoader:
     and support stochastic iteration counts in order to preserve perfect linearity/independence.
     """
 
-    def __init__(self, path, train=True, batch_size=500, aug=None, seed=None):
+    def __init__(self, path, train=True, batch_size=500, aug=None, aug_seed=None, order_seed=None):
         data_path = os.path.join(path, 'train.pt' if train else 'test.pt')
         if not os.path.exists(data_path):
             dset = torchvision.datasets.CIFAR10(path, download=True, train=train)
@@ -119,17 +119,18 @@ class InfiniteCifarLoader:
 
         self.batch_size = batch_size
         assert train
-        self.seed = seed
+        self.aug_seed = aug_seed
+        self.order_seed = order_seed
 
-    def set_random_state(self, state):
-        if self.seed is None:
+    def set_random_state(self, seed, state):
+        if seed is None:
             # If we don't get a data seed, then make sure to randomize the state using independent generator, since
             # it might have already been set by the model seed.
             import random
             torch.manual_seed(random.randint(0, 2**63))
         else:
-            seed = 1000 * self.seed + state # just don't do more than 1000 epochs or else there will be overlap
-            torch.manual_seed(seed)
+            seed1 = 1000 * seed + state # just don't do more than 1000 epochs or else there will be overlap
+            torch.manual_seed(seed1)
 
     def __iter__(self):
 
@@ -137,7 +138,7 @@ class InfiniteCifarLoader:
         images0 = self.normalize(self.images)
         # Pre-randomly flip images in order to do alternating flip later.
         assert self.aug.get('flip', False)
-        self.set_random_state(0)
+        self.set_random_state(self.aug_seed, 0)
         images0 = batch_flip_lr(images0)
         # Pre-pad images to save time when doing random translation
         pad = self.aug.get('translate', 0)
@@ -172,9 +173,9 @@ class InfiniteCifarLoader:
                     # If we already reached the end of the last epoch then we need to generate
                     # a new augmented epoch of data (using random crop and alternating flip).
                     epoch += 1
-                    self.set_random_state(epoch)
+                    self.set_random_state(self.order_seed, epoch)
                     indices = torch.randperm(len(images0), device=images0.device)
-                    self.set_random_state(epoch)
+                    self.set_random_state(self.aug_seed, epoch)
                     images1 = batch_crop(images0, 32)
                     images1 = images1 if epoch % 2 == 0 else images1.flip(-1)
                     images1 = images1[indices]
