@@ -98,7 +98,7 @@ class InfiniteCifarLoader:
     and support stochastic iteration counts in order to preserve perfect linearity/independence.
     """
 
-    def __init__(self, path, train=True, batch_size=500, aug=None, aug_seed=None, order_seed=None):
+    def __init__(self, path, train=True, batch_size=500, aug=None, aug_seed=None, order_seed=None, subset_mask=None):
         data_path = os.path.join(path, 'train.pt' if train else 'test.pt')
         if not os.path.exists(data_path):
             dset = torchvision.datasets.CIFAR10(path, download=True, train=train)
@@ -121,6 +121,7 @@ class InfiniteCifarLoader:
         assert train
         self.aug_seed = aug_seed
         self.order_seed = order_seed
+        self.subset_mask = None
 
     def set_random_state(self, seed, state):
         if seed is None:
@@ -173,11 +174,15 @@ class InfiniteCifarLoader:
                     # If we already reached the end of the last epoch then we need to generate
                     # a new augmented epoch of data (using random crop and alternating flip).
                     epoch += 1
-                    self.set_random_state(self.order_seed, epoch)
-                    indices = torch.randperm(len(images0), device=images0.device)
+
                     self.set_random_state(self.aug_seed, epoch)
                     images1 = batch_crop(images0, 32)
                     images1 = images1 if epoch % 2 == 0 else images1.flip(-1)
+
+                    self.set_random_state(self.order_seed, epoch)
+                    indices = torch.randperm(len(images0), device=images0.device)
+
+                    indices = indices[self.subset_mask] # Do the subsetting here to minimize interaction with randomness.
                     images1 = images1[indices]
                     labels1 = labels0[indices]
                     current_pointer = 0

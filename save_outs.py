@@ -21,9 +21,9 @@ model = torch.compile(make_net(), mode='max-autotune')
 def save_outs(mask, key, aug_seed=None, order_seed=None, **kwargs):
 
     loader = InfiniteCifarLoader('/tmp/cifar10', train=True, batch_size=1000, aug=dict(flip=True, translate=2),
-                                 aug_seed=aug_seed, order_seed=order_seed)
-    loader.images = loader.images[mask]
-    loader.labels = loader.labels[mask]
+                                 aug_seed=aug_seed, order_seed=order_seed, subset_mask=mask)
+    #loader.images = loader.images[mask]
+    #loader.labels = loader.labels[mask]
 
     train_logits = []
     test_logits = []
