@@ -121,7 +121,7 @@ class InfiniteCifarLoader:
         assert train
         self.aug_seed = aug_seed
         self.order_seed = order_seed
-        self.subset_mask = None
+        self.subset_mask = subset_mask if subset_mask is not None else torch.tensor([True]*len(self.images))
 
     def set_random_state(self, seed, state):
         if seed is None:
@@ -151,7 +151,8 @@ class InfiniteCifarLoader:
         epoch = 0
         batch_size = self.batch_size
 
-        current_pointer = len(images0)
+        num_examples = self.subset_mask.sum().item()
+        current_pointer = num_examples
         batch_images = torch.empty(0, 3, 32, 32, dtype=images0.dtype, device=images0.device)
         batch_labels = torch.empty(0, dtype=labels0.dtype, device=labels0.device)
 
@@ -170,7 +171,7 @@ class InfiniteCifarLoader:
 
                 # Otherwise, we need to generate more data to add to the batch.
                 assert len(batch_images) < batch_size
-                if current_pointer >= len(images0):
+                if current_pointer >= num_examples:
                     # If we already reached the end of the last epoch then we need to generate
                     # a new augmented epoch of data (using random crop and alternating flip).
                     epoch += 1
@@ -180,7 +181,7 @@ class InfiniteCifarLoader:
                     images1 = images1 if epoch % 2 == 0 else images1.flip(-1)
 
                     self.set_random_state(self.order_seed, epoch)
-                    indices = torch.randperm(len(images0), device=images0.device)
+                    indices = torch.randperm(len(self.images), device=images0.device)
 
                     indices = indices[self.subset_mask] # Do the subsetting here to minimize interaction with randomness.
                     images1 = images1[indices]
