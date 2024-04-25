@@ -8,4 +8,4 @@ Functional changes:
 Under-the-hood changes:
 * Replaced the dataloader with an "infinite iterator" variant which ensures that every example is seen every epoch (rather than potentially being dropped if the batch size does not divide the example count)
 * This dataloader also accepts random seeds for the data ordering, data augmentation, and model initialization, enabling detailed study of these factors.
-* The total batch count uses stochastic rounding to ensure that the expected number of iterations is strictly equal to a specified multiple of the number of training examples.
+* The total batch count uses stochastic rounding to ensure that the expected number of iterations is strictly equal to a specified multiple of the number of training examples. This is a subtle point that is very important for certain experiments in data influence.
