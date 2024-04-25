@@ -2,7 +2,7 @@ Changes relative to `airbench94.py`:
 
 Functional changes:
 * Removed test-time augmentation (-0.8% accuracy), label smoothing (-0.2% accuracy), lookahead optimization, and progressive freezing of the whitening layer bias.
-* Reduced learning rate from 11.5 to 5.0 (which is optimal given removal of label smoothing).
+* Reduced learning rate from 11.5 to 5.0 (which is apparently optimal given removal of label smoothing).
 * Rounded weight decay to 0.15, batch size to 1000, and epochs to 10.0.
 
 Under-the-hood changes:
