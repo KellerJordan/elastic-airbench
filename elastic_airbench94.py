@@ -121,7 +121,7 @@ class InfiniteCifarLoader:
         assert train
         self.aug_seed = aug_seed
         self.order_seed = order_seed
-        self.subset_mask = subset_mask if subset_mask is not None else torch.tensor([True]*len(self.images))
+        self.subset_mask = subset_mask if subset_mask is not None else torch.tensor([True]*len(self.images)).cuda()
 
     def set_random_state(self, seed, state):
         if seed is None:
