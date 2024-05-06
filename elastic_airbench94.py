@@ -98,7 +98,7 @@ class InfiniteCifarLoader:
     and support stochastic iteration counts in order to preserve perfect linearity/independence.
     """
 
-    def __init__(self, path, train=True, batch_size=500, aug=None, altflip=True, replacement=False,
+    def __init__(self, path, train=True, batch_size=500, aug=None, altflip=True,
                  aug_seed=None, order_seed=None, subset_mask=None):
         data_path = os.path.join(path, 'train.pt' if train else 'test.pt')
         if not os.path.exists(data_path):
@@ -123,7 +123,6 @@ class InfiniteCifarLoader:
         self.aug_seed = aug_seed
         self.order_seed = order_seed
         self.altflip = altflip
-        self.replacement = replacement # whether to sample training examples with replacement (default=no)
         self.subset_mask = subset_mask if subset_mask is not None else torch.tensor([True]*len(self.images)).cuda()
 
     def set_random_state(self, seed, state):
@@ -188,10 +187,7 @@ class InfiniteCifarLoader:
                         images1 = batch_flip_lr(images1)
 
                     self.set_random_state(self.order_seed, epoch)
-                    if self.replacement:
-                        indices = torch.randint(0, len(self.images), size=(len(self.images),), device=images0.device)
-                    else:
-                        indices = torch.randperm(len(self.images), device=images0.device)
+                    indices = torch.randperm(len(self.images), device=images0.device)
 
                     # The effect of doing subsetting in this manner is as follows. If the permutation wants to show us
                     # our four examples in order [3, 2, 0, 1], and the subset mask is [True, False, True, False],
