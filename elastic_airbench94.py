@@ -98,7 +98,7 @@ class InfiniteCifarLoader:
     and support stochastic iteration counts in order to preserve perfect linearity/independence.
     """
 
-    def __init__(self, path, train=True, batch_size=500, aug=None, aug_seed=None, order_seed=None, subset_mask=None):
+    def __init__(self, path, train=True, batch_size=500, aug=None, altflip=True, aug_seed=None, order_seed=None, subset_mask=None):
         data_path = os.path.join(path, 'train.pt' if train else 'test.pt')
         if not os.path.exists(data_path):
             dset = torchvision.datasets.CIFAR10(path, download=True, train=train)
@@ -121,6 +121,7 @@ class InfiniteCifarLoader:
         assert train
         self.aug_seed = aug_seed
         self.order_seed = order_seed
+        self.altflip = altflip
         self.subset_mask = subset_mask if subset_mask is not None else torch.tensor([True]*len(self.images)).cuda()
 
     def set_random_state(self, seed, state):
@@ -139,8 +140,9 @@ class InfiniteCifarLoader:
         images0 = self.normalize(self.images)
         # Pre-randomly flip images in order to do alternating flip later.
         assert self.aug.get('flip', False)
-        self.set_random_state(self.aug_seed, 0)
-        images0 = batch_flip_lr(images0)
+        if self.altflip:
+            self.set_random_state(self.aug_seed, 0)
+            images0 = batch_flip_lr(images0)
         # Pre-pad images to save time when doing random translation
         pad = self.aug.get('translate', 0)
         assert pad > 0
@@ -178,7 +180,10 @@ class InfiniteCifarLoader:
 
                     self.set_random_state(self.aug_seed, epoch)
                     images1 = batch_crop(images0, 32)
-                    images1 = images1 if epoch % 2 == 0 else images1.flip(-1)
+                    if self.altflip:
+                        images1 = images1 if epoch % 2 == 0 else images1.flip(-1)
+                    else:
+                        images1 = batch_flip_lr(images1)
 
                     self.set_random_state(self.order_seed, epoch)
                     indices = torch.randperm(len(self.images), device=images0.device)
