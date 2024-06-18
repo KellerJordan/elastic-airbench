@@ -248,6 +248,7 @@ class ConvGroup(nn.Module):
         self.norm1 = BatchNorm(channels_out)
         self.conv2 = Conv(channels_out, channels_out)
         self.norm2 = BatchNorm(channels_out)
+        self.activ = nn.GELU()
 
     def forward(self, x):
         x = self.conv1(x)
