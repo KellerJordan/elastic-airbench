@@ -313,6 +313,7 @@ def reinit_net(model):
     for m in model.modules():
         if type(m) in (Conv, BatchNorm, nn.Linear):
             m.reset_parameters()
+    net[0].weight.data[:] = torch.cat((eigenvectors_scaled, -eigenvectors_scaled))
 
 ############################################
 #                Training                  #
