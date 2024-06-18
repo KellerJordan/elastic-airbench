@@ -55,7 +55,6 @@ hyp = {
             'block2': 256,
             'block3': 256,
         },
-        'batchnorm_momentum': 0.9,
         'scaling_factor': 1/9,
     },
 }
@@ -224,9 +223,8 @@ class Mul(nn.Module):
         return x * self.scale
 
 class BatchNorm(nn.BatchNorm2d):
-    def __init__(self, num_features, momentum, eps=1e-12,
-                 weight=False, bias=True):
-        super().__init__(num_features, eps=eps, momentum=1-momentum)
+    def __init__(self, num_features, eps=1e-12, weight=False, bias=True):
+        super().__init__(num_features, eps=eps)
         self.weight.requires_grad = weight
         self.bias.requires_grad = bias
         # Note that PyTorch already initializes the weights to one and bias to zero
@@ -243,14 +241,13 @@ class Conv(nn.Conv2d):
         torch.nn.init.dirac_(w[:w.size(1)])
 
 class ConvGroup(nn.Module):
-    def __init__(self, channels_in, channels_out, batchnorm_momentum):
+    def __init__(self, channels_in, channels_out):
         super().__init__()
         self.conv1 = Conv(channels_in,  channels_out)
         self.pool = nn.MaxPool2d(2)
-        self.norm1 = BatchNorm(channels_out, batchnorm_momentum)
+        self.norm1 = BatchNorm(channels_out)
         self.conv2 = Conv(channels_out, channels_out)
-        self.norm2 = BatchNorm(channels_out, batchnorm_momentum)
-        self.activ = nn.GELU()
+        self.norm2 = BatchNorm(channels_out
 
     def forward(self, x):
         x = self.conv1(x)
@@ -266,15 +263,15 @@ class ConvGroup(nn.Module):
 #            Network Definition             #
 #############################################
 
-def make_net(widths=hyp['net']['widths'], batchnorm_momentum=hyp['net']['batchnorm_momentum']):
+def make_net(widths=hyp['net']['widths']):
     whiten_kernel_size = 2
     whiten_width = 2 * 3 * whiten_kernel_size**2
     net = nn.Sequential(
         Conv(3, whiten_width, whiten_kernel_size, padding=0, bias=True),
         nn.GELU(),
-        ConvGroup(whiten_width,     widths['block1'], batchnorm_momentum),
-        ConvGroup(widths['block1'], widths['block2'], batchnorm_momentum),
-        ConvGroup(widths['block2'], widths['block3'], batchnorm_momentum),
+        ConvGroup(whiten_width,     widths['block1']),
+        ConvGroup(widths['block1'], widths['block2']),
+        ConvGroup(widths['block2'], widths['block3']),
         nn.MaxPool2d(3),
         Flatten(),
         nn.Linear(widths['block3'], 10, bias=False),
