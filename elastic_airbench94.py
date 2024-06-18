@@ -247,7 +247,7 @@ class ConvGroup(nn.Module):
         self.pool = nn.MaxPool2d(2)
         self.norm1 = BatchNorm(channels_out)
         self.conv2 = Conv(channels_out, channels_out)
-        self.norm2 = BatchNorm(channels_out
+        self.norm2 = BatchNorm(channels_out)
 
     def forward(self, x):
         x = self.conv1(x)
