@@ -314,7 +314,7 @@ def reinit_net(model):
         if type(m) in (Conv, BatchNorm, nn.Linear):
             m.reset_parameters()
     raw_model = (model._orig_mod if hasattr(model, '_orig_mod') else model)
-    raw_model[0].weight.data[:] = torch.cat((eigenvectors_scaled, -eigenvectors_scaled)
+    raw_model[0].weight.data[:] = torch.cat((eigenvectors_scaled, -eigenvectors_scaled))
 
 ############################################
 #                Training                  #
