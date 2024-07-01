@@ -55,7 +55,7 @@ def save_outs(mask, key, aug_seed=None, order_seed=None, **kwargs):
     test_logits = []
     train_logits2 = []
     test_logits2 = []
-    for i in range(5):
+    for i in range(50):
         train(model, loader, **kwargs)
         train_logits.append(airbench.infer(model, train_loader))
         test_logits.append(airbench.infer(model, test_loader))
@@ -66,7 +66,7 @@ def save_outs(mask, key, aug_seed=None, order_seed=None, **kwargs):
     os.makedirs('logits/%s' % key, exist_ok=True)
     torch.save(obj, os.path.join('logits', key, str(uuid.uuid4())+'.pt'))
 
-n = 1
+n = 99
 for _ in tqdm(range(n)):
     mask = torch.tensor([True]*50000).cuda()
     save_outs(mask, 'elastic_e10_fvk')
