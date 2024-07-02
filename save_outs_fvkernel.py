@@ -42,6 +42,11 @@ train_labels = train_loader.labels
 test_loader = Loader('/tmp/cifar10', train=False)
 train_loader2 = Loader('/tmp/cifar100', train=True)
 test_loader2 = Loader('/tmp/cifar100', train=False)
+# Flipped variants of test loaders
+test_loader3 = Loader('/tmp/cifar10', train=False)
+test_loader4 = Loader('/tmp/cifar100', train=False)
+test_loader3.images = test_loader3.images.flip(-1)
+test_loader4.images = test_loader4.images.flip(-1)
 
 model = torch.compile(make_net(), mode='max-autotune')
 
@@ -55,14 +60,19 @@ def save_outs(mask, key, aug_seed=None, order_seed=None, **kwargs):
     test_logits = []
     train_logits2 = []
     test_logits2 = []
+    test_logits3 = []
+    test_logits4 = []
     for i in range(50):
         train(model, loader, **kwargs)
         train_logits.append(airbench.infer(model, train_loader))
         test_logits.append(airbench.infer(model, test_loader))
         train_logits2.append(airbench.infer(model, train_loader2))
         test_logits2.append(airbench.infer(model, test_loader2))
+        test_logits3.append(airbench.infer(model, test_loader3))
+        test_logits4.append(airbench.infer(model, test_loader4))
     obj = dict(code=code, mask=mask, train_logits=torch.stack(train_logits), test_logits=torch.stack(test_logits),
-               train_logits2=torch.stack(train_logits2), test_logits2=torch.stack(test_logits2))
+               train_logits2=torch.stack(train_logits2), test_logits2=torch.stack(test_logits2),
+               test_logits3=torch.stack(test_logits3), test_logits4=torch.stack(test_logits4))
     os.makedirs('logits/%s' % key, exist_ok=True)
     torch.save(obj, os.path.join('logits', key, str(uuid.uuid4())+'.pt'))
 
