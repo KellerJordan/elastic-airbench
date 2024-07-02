@@ -76,7 +76,7 @@ def save_outs(mask, key, aug_seed=None, order_seed=None, **kwargs):
     os.makedirs('logits/%s' % key, exist_ok=True)
     torch.save(obj, os.path.join('logits', key, str(uuid.uuid4())+'.pt'))
 
-n = 99
+n = 100
 for _ in tqdm(range(n)):
     mask = torch.tensor([True]*50000).cuda()
     save_outs(mask, 'elastic_e10_fvk')
