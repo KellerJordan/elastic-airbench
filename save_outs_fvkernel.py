@@ -13,13 +13,13 @@ class Loader:
     def __init__(self, path, train=True):
         data_path = os.path.join(path, 'train.pt' if train else 'test.pt')
         if not os.path.exists(data_path):
-            if 'cifar10' in path:
-                dset = torchvision.datasets.CIFAR10(path, download=True, train=train)
+            if 'cifar100' in path:
+                dset = torchvision.datasets.CIFAR100(path, download=True, train=train)
                 images = torch.tensor(dset.data)
                 labels = torch.tensor(dset.targets)
                 torch.save({'images': images, 'labels': labels, 'classes': dset.classes}, data_path)
-            elif 'cifar100' in path:
-                dset = torchvision.datasets.CIFAR100(path, download=True, train=train)
+            elif 'cifar10' in path:
+                dset = torchvision.datasets.CIFAR10(path, download=True, train=train)
                 images = torch.tensor(dset.data)
                 labels = torch.tensor(dset.targets)
                 torch.save({'images': images, 'labels': labels, 'classes': dset.classes}, data_path)
