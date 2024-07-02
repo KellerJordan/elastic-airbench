@@ -15,16 +15,13 @@ class Loader:
         if not os.path.exists(data_path):
             if 'cifar100' in path:
                 dset = torchvision.datasets.CIFAR100(path, download=True, train=train)
-                images = torch.tensor(dset.data)
-                labels = torch.tensor(dset.targets)
-                torch.save({'images': images, 'labels': labels, 'classes': dset.classes}, data_path)
             elif 'cifar10' in path:
                 dset = torchvision.datasets.CIFAR10(path, download=True, train=train)
-                images = torch.tensor(dset.data)
-                labels = torch.tensor(dset.targets)
-                torch.save({'images': images, 'labels': labels, 'classes': dset.classes}, data_path)
             else:
                 assert False
+            images = torch.tensor(dset.data)
+            labels = torch.tensor(dset.targets)
+            torch.save({'images': images, 'labels': labels, 'classes': dset.classes}, data_path)
         data = torch.load(data_path, map_location='cuda')
         self.images, self.labels, self.classes = data['images'], data['labels'], data['classes']
         # It's faster to load+process uint8 data than to load preprocessed fp16 data
