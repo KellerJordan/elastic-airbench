@@ -378,7 +378,7 @@ def train(model, train_loader,
     ####################
 
     model.train()
-    for inputs, labels in train_loader:
+    for _, inputs, labels in train_loader:
 
         outputs = model(inputs)
         loss = loss_fn(outputs, labels).sum()
