@@ -23,18 +23,6 @@ import airbench
 
 torch.backends.cudnn.benchmark = True
 
-# We express the main training hyperparameters (batch size, learning rate, momentum, and weight decay)
-# in decoupled form, so that each one can be tuned independently. This accomplishes the following:
-# * Assuming time-constant gradients, the average step size is decoupled from everything but the lr.
-# * The size of the weight decay update is decoupled from everything but the wd.
-# In constrast, normally when we increase the (Nesterov) momentum, this also scales up the step size
-# proportionally to 1 + 1 / (1 - momentum), meaning we cannot change momentum without having to re-tune
-# the learning rate. Similarly, normally when we increase the learning rate this also increases the size
-# of the weight decay, requiring a proportional decrease in the wd to maintain the same decay strength.
-#
-# The practical impact is that hyperparameter tuning is faster, since this parametrization allows each
-# one to be tuned independently. See https://myrtle.ai/learn/how-to-train-your-resnet-5-hyperparameters/.
-
 hyp = {
     'opt': {
         'epochs': 10.0,
@@ -90,6 +78,16 @@ def batch_crop(images, crop_size):
             images_out[mask] = images_tmp[mask, :, :, r+s:r+s+crop_size]
     return images_out
 
+def set_random_state(seed, state):
+    if seed is None:
+        # If we don't get a seed, then make sure to randomize the state using independent generator, since
+        # it might have already been set by the model seed.
+        import random
+        torch.manual_seed(random.randint(0, 2**63))
+    else:
+        seed1 = 1000 * seed + state # just don't do more than 1000 epochs or else there will be overlap
+        torch.manual_seed(seed1)
+
 class InfiniteCifarLoader:
     """
     CIFAR-10 loader which constructs every input to be used during training during the call to __iter__.
@@ -97,8 +95,7 @@ class InfiniteCifarLoader:
     and support stochastic iteration counts in order to preserve perfect linearity/independence.
     """
 
-    def __init__(self, path, train=True, batch_size=500, aug=None, altflip=True,
-                 aug_seed=None, order_seed=None, subset_mask=None):
+    def __init__(self, path, train=True, batch_size=500, aug=None, altflip=True, subset_mask=None, aug_seed=None, order_seed=None):
         data_path = os.path.join(path, 'train.pt' if train else 'test.pt')
         if not os.path.exists(data_path):
             dset = torchvision.datasets.CIFAR10(path, download=True, train=train)
@@ -118,94 +115,93 @@ class InfiniteCifarLoader:
             assert k in ['flip', 'translate'], 'Unrecognized key: %s' % k
 
         self.batch_size = batch_size
-        assert train
-        self.aug_seed = aug_seed
-        self.order_seed = order_seed
         self.altflip = altflip
         self.subset_mask = subset_mask if subset_mask is not None else torch.tensor([True]*len(self.images)).cuda()
-
-    def set_random_state(self, seed, state):
-        if seed is None:
-            # If we don't get a data seed, then make sure to randomize the state using independent generator, since
-            # it might have already been set by the model seed.
-            import random
-            torch.manual_seed(random.randint(0, 2**63))
-        else:
-            seed1 = 1000 * seed + state # just don't do more than 1000 epochs or else there will be overlap
-            torch.manual_seed(seed1)
+        self.train = train
+        self.aug_seed = aug_seed
+        self.order_seed = order_seed
 
     def __iter__(self):
 
         # Preprocess
         images0 = self.normalize(self.images)
         # Pre-randomly flip images in order to do alternating flip later.
-        assert self.aug.get('flip', False)
-        if self.altflip:
-            self.set_random_state(self.aug_seed, 0)
+        if self.aug.get('flip', False) and self.altflip:
+            set_random_state(self.aug_seed, 0)
             images0 = batch_flip_lr(images0)
         # Pre-pad images to save time when doing random translation
         pad = self.aug.get('translate', 0)
-        assert pad > 0
-        images0 = F.pad(images0, (pad,)*4, 'reflect')
+        if pad > 0:
+            images0 = F.pad(images0, (pad,)*4, 'reflect')
         labels0 = self.labels
 
-        # Iterate infinitely
+        # Iterate forever
         epoch = 0
         batch_size = self.batch_size
 
+        # In the below while-loop, we will repeatedly build a batch and then yield it.
         num_examples = self.subset_mask.sum().item()
         current_pointer = num_examples
         batch_images = torch.empty(0, 3, 32, 32, dtype=images0.dtype, device=images0.device)
         batch_labels = torch.empty(0, dtype=labels0.dtype, device=labels0.device)
+        batch_indices = torch.empty(0, dtype=labels0.dtype, device=labels0.device)
 
         while True:
 
-            if len(batch_images) == batch_size:
+            # Assume we need to generate more data to add to the batch.
+            assert len(batch_images) < batch_size
 
-                # If we have a full batch ready then just yield it and reset.
-                assert len(batch_images) == len(batch_labels)
-                yield (batch_images, batch_labels)
+            # If we have already exhausted the current epoch, then begin a new one.
+            if current_pointer >= num_examples:
+                # If we already reached the end of the last epoch then we need to generate
+                # a new augmented epoch of data (using random crop and alternating flip).
+                epoch += 1
 
-                batch_images = torch.empty(0, 3, 32, 32, dtype=images0.dtype, device=images0.device)
-                batch_labels = torch.empty(0, dtype=labels0.dtype, device=labels0.device)
-
-            else:
-
-                # Otherwise, we need to generate more data to add to the batch.
-                assert len(batch_images) < batch_size
-                if current_pointer >= num_examples:
-                    # If we already reached the end of the last epoch then we need to generate
-                    # a new augmented epoch of data (using random crop and alternating flip).
-                    epoch += 1
-
-                    self.set_random_state(self.aug_seed, epoch)
+                set_random_state(self.aug_seed, epoch)
+                if pad > 0:
                     images1 = batch_crop(images0, 32)
+                if self.aug.get('flip', False):
                     if self.altflip:
                         images1 = images1 if epoch % 2 == 0 else images1.flip(-1)
                     else:
                         images1 = batch_flip_lr(images1)
 
-                    self.set_random_state(self.order_seed, epoch)
-                    indices = torch.randperm(len(self.images), device=images0.device)
+                set_random_state(self.order_seed, epoch)
+                indices = (torch.randperm if self.train else torch.arange)(len(self.images), device=images0.device)
 
-                    # The effect of doing subsetting in this manner is as follows. If the permutation wants to show us
-                    # our four examples in order [3, 2, 0, 1], and the subset mask is [True, False, True, False],
-                    # then we will be shown the examples [2, 0]. It is the subset of the ordering.
-                    # The purpose is to minimize the interaction between the subset mask and the randomness.
-                    # So that the subset causes not only a subset of the total examples to be shown, but also a subset of
-                    # the actual sequence of examples which is shown during training.
-                    indices_subset = indices[self.subset_mask[indices]]
-                    images1 = images1[indices_subset]
-                    labels1 = labels0[indices_subset]
-                    current_pointer = 0
+                # The effect of doing subsetting in this manner is as follows. If the permutation wants to show us
+                # our four examples in order [3, 2, 0, 1], and the subset mask is [True, False, True, False],
+                # then we will be shown the examples [2, 0]. It is the subset of the ordering.
+                # The purpose is to minimize the interaction between the subset mask and the randomness.
+                # So that the subset causes not only a subset of the total examples to be shown, but also a subset of
+                # the actual sequence of examples which is shown during training.
+                indices_subset = indices[self.subset_mask[indices]]
+                current_pointer = 0
 
-                # Now we are sure to have more data in this epoch remaining.
-                # This epoch's remaining data is given by (images1[current_pointer:], labels1[current_pointer:])
-                # We add more data to the batch, up to whatever is needed to make a full batch (but it might not be enough).
-                remaining_size = batch_size - len(batch_images)
-                batch_images = torch.cat([batch_images, images1[current_pointer:current_pointer+remaining_size]])
-                batch_labels = torch.cat([batch_labels, labels1[current_pointer:current_pointer+remaining_size]])
-                current_pointer += remaining_size
+            # Now we are sure to have more data in this epoch remaining.
+            # This epoch's remaining data is given by (images1[current_pointer:], labels0[current_pointer:])
+            # We add more data to the batch, up to whatever is needed to make a full batch (but it might not be enough).
+            remaining_size = batch_size - len(batch_images)
+
+            # Given that we want `remaining_size` more training examples, we construct them here, using
+            # the remaining available examples in the epoch.
+
+            extra_indices = indices_subset[current_pointer:current_pointer+remaining_size]
+            extra_images = images1[extra_indices]
+            extra_labels = labels0[extra_indices]
+            current_pointer += remaining_size
+            batch_indices = torch.cat([batch_indices, extra_indices])
+            batch_images = torch.cat([batch_images, extra_images])
+            batch_labels = torch.cat([batch_labels, extra_labels])
+
+            # If we have a full batch ready then yield it and reset.
+            if len(batch_images) == batch_size:
+                assert len(batch_images) == len(batch_labels)
+                yield (batch_indices, batch_images, batch_labels)
+                batch_images = torch.empty(0, 3, 32, 32, dtype=images0.dtype, device=images0.device)
+                batch_labels = torch.empty(0, dtype=labels0.dtype, device=labels0.device)
+                batch_indices = torch.empty(0, dtype=labels0.dtype, device=labels0.device)
+
 
 #############################################
 #            Network Components             #
@@ -286,7 +282,8 @@ eigenvectors_scaled = torch.tensor([
 -1.2133e+01,  1.2133e+01,  1.2148e+01, -1.2148e+01,  7.4141e+00, -7.4180e+00, -7.4219e+00,  7.4297e+00,
 ]).reshape(12, 3, 2, 2)
 
-def make_net(widths=hyp['net']['widths']):
+def make_net():
+    widths = hyp['net']['widths']
     whiten_kernel_size = 2
     whiten_width = 2 * 3 * whiten_kernel_size**2
     net = nn.Sequential(
@@ -355,13 +352,7 @@ def train(model, train_loader,
         total_train_steps = integral_steps
 
     # Reinitialize the network from scratch - nothing is reused from previous runs besides the PyTorch compilation
-    if model_seed is None:
-        # If we don't get a model seed, then make sure to randomize the state using independent generator, since
-        # it might have already been set by the data seed inside the loader.
-        import random
-        torch.manual_seed(random.randint(0, 2**63))
-    else:
-        torch.manual_seed(model_seed)
+    set_random_state(model_seed, 0)
     reinit_net(model)
     current_steps = 0
 
