@@ -33,6 +33,8 @@ def save_outs(mask, key, aug_seed=None, order_seed=None, **kwargs):
         train_logits.append(airbench.infer(model, train_loader))
         test_logits.append(airbench.infer(model, test_loader))
     obj = dict(code=code, mask=mask, train_logits=torch.stack(train_logits), test_logits=torch.stack(test_logits))
+    obj['train_logits'] = obj['train_logits'].float().mean(0).half()
+    obj['test_logits'] = obj['test_logits'].float().mean(0).half()
     os.makedirs('logits/%s' % key, exist_ok=True)
     torch.save(obj, os.path.join('logits', key, str(uuid.uuid4())+'.pt'))
 
@@ -55,7 +57,7 @@ def get_firstk(k):
     return mask
 
 
-n = 50
+n = 100
 for _ in tqdm(range(n)):
     mask = get_firstk(5000)
     mask[3, :4500] = False # remove 80% of cats
